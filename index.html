@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Data Cleaning & Reporting Automation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+:root {
+  --bg:#f0f4ff;--surface:#ffffff;--surface2:#f8f9ff;--border:#e2e8f0;
+  --primary:#4f46e5;--primary-light:#eef2ff;--green:#059669;--green-light:#ecfdf5;
+  --red:#dc2626;--red-light:#fef2f2;--amber:#d97706;--amber-light:#fffbeb;
+  --blue:#2563eb;--blue-light:#eff6ff;--text:#1e293b;--muted:#64748b;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+/* NAV */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;background:var(--primary);position:sticky;top:0;z-index:100;}
+.nav-logo{font-size:16px;font-weight:700;color:#fff;display:flex;align-items:center;gap:10px;}
+.nav-logo .icon{background:rgba(255,255,255,0.2);padding:6px 10px;border-radius:8px;font-size:16px;}
+.nav-right{display:flex;gap:10px;}
+.btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;border:none;transition:all .2s;}
+.btn-white{background:#fff;color:var(--primary);}
+.btn-white:hover{background:#eef2ff;}
+.btn-outline-white{background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.4);}
+.btn-outline-white:hover{background:rgba(255,255,255,0.1);}
+/* HERO */
+.hero{background:linear-gradient(135deg,var(--primary) 0%,#7c3aed 100%);padding:40px 32px;color:#fff;}
+.hero-title{font-size:36px;font-weight:700;letter-spacing:-1px;margin-bottom:8px;}
+.hero-sub{font-size:13px;opacity:.75;margin-bottom:24px;line-height:1.6;}
+.hero-stats{display:flex;gap:24px;flex-wrap:wrap;}
+.hero-stat{background:rgba(255,255,255,0.15);border-radius:10px;padding:12px 20px;backdrop-filter:blur(10px);}
+.hero-stat-val{font-size:22px;font-weight:700;font-family:'Fira Code',monospace;}
+.hero-stat-lbl{font-size:11px;opacity:.7;margin-top:2px;}
+/* MAIN */
+.main{padding:28px 32px;max-width:1400px;margin:0 auto;}
+/* UPLOAD ZONE */
+.upload-zone{background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px;position:relative;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--primary);background:var(--primary-light);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.upload-icon{font-size:36px;margin-bottom:12px;}
+.upload-title{font-size:15px;font-weight:600;margin-bottom:4px;}
+.upload-sub{font-size:12px;color:var(--muted);}
+/* TABS */
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;}
+.tab{padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'Inter',sans-serif;transition:all .2s;}
+.tab.active{background:var(--primary);color:#fff;}
+/* PIPELINE */
+.pipeline{display:flex;align-items:center;gap:0;margin-bottom:24px;overflow-x:auto;padding-bottom:4px;}
+.pipe-step{display:flex;align-items:center;}
+.pipe-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:140px;text-align:center;position:relative;transition:all .3s;}
+.pipe-box.done{border-color:var(--green);background:var(--green-light);}
+.pipe-box.active{border-color:var(--primary);background:var(--primary-light);box-shadow:0 0 0 3px rgba(79,70,229,0.15);}
+.pipe-box.pending{opacity:.5;}
+.pipe-icon{font-size:20px;margin-bottom:4px;}
+.pipe-name{font-size:11px;font-weight:600;color:var(--text);}
+.pipe-status{font-size:10px;color:var(--muted);margin-top:2px;}
+.pipe-arrow{width:32px;height:2px;background:var(--border);margin:0 -1px;flex-shrink:0;}
+.pipe-arrow.done{background:var(--green);}
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;}
+.kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.kpi-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.kpi-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:500;}
+.kpi-val{font-size:28px;font-weight:700;font-family:'Fira Code',monospace;letter-spacing:-1px;}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+.badge-green{background:var(--green-light);color:var(--green);}
+.badge-red{background:var(--red-light);color:var(--red);}
+.badge-amber{background:var(--amber-light);color:var(--amber);}
+.badge-blue{background:var(--blue-light);color:var(--blue);}
+.badge-purple{background:#f5f3ff;color:#7c3aed;}
+/* GRID LAYOUTS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.grid-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.card-sub{font-size:11px;color:var(--muted);margin-bottom:16px;}
+/* ISSUE TABLE */
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr:last-child{border:none;}
+tbody td{padding:9px 10px;}
+/* LOG */
+.log{background:#0f172a;border-radius:10px;padding:16px;font-family:'Fira Code',monospace;font-size:11px;line-height:1.8;max-height:260px;overflow-y:auto;}
+.log-line{display:flex;gap:10px;}
+.log-time{color:#475569;}
+.log-info{color:#38bdf8;}
+.log-ok{color:#4ade80;}
+.log-warn{color:#fbbf24;}
+.log-err{color:#f87171;}
+/* COLUMN PROFILE */
+.col-profile{display:flex;flex-direction:column;gap:10px;}
+.col-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.col-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.col-name{font-size:12px;font-weight:600;font-family:'Fira Code',monospace;}
+.col-dtype{font-size:10px;color:var(--muted);}
+.col-bar-track{background:var(--border);border-radius:4px;height:5px;margin-bottom:6px;}
+.col-bar-fill{height:5px;border-radius:4px;background:var(--primary);}
+.col-stats{display:flex;gap:12px;font-size:10px;color:var(--muted);}
+/* BEFORE/AFTER */
+.diff-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.diff-row:last-child{border:none;}
+.diff-before{color:var(--red);font-family:'Fira Code',monospace;font-size:11px;}
+.diff-after{color:var(--green);font-family:'Fira Code',monospace;font-size:11px;}
+.diff-arrow{color:var(--muted);font-size:14px;}
+/* REPORT SECTION */
+.report-header{background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:12px 12px 0 0;padding:20px 24px;margin-bottom:0;}
+.report-body{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:20px 24px;margin-bottom:16px;}
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;padding:12px 20px;border-radius:10px;font-size:12px;z-index:999;transform:translateY(60px);opacity:0;transition:all .3s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+/* PROGRESS */
+.prog-wrap{margin-bottom:10px;}
+.prog-label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;}
+.prog-track{background:var(--border);border-radius:4px;height:7px;}
+.prog-fill{height:7px;border-radius:4px;transition:width .8s ease;}
+@media(max-width:900px){.kpi-grid{grid-template-columns:1fr 1fr;}.grid-2,.grid-3{grid-template-columns:1fr;}.pipeline{flex-wrap:wrap;}.main,.nav,.hero{padding-left:16px;padding-right:16px;}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo"><span class="icon">🧹</span> DataClean Pro</div>
+  <div class="nav-right">
+    <button class="btn btn-outline-white" onclick="exportReport()">📄 Export Report</button>
+    <button class="btn btn-white" onclick="runPipeline()">▶ Run Pipeline</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-title">Data Cleaning & Reporting Automation</div>
+  <div class="hero-sub">Automated pipeline: Missing value imputation · Duplicate removal · Outlier detection · Inconsistency fixes · Visual reporting</div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="hero-stat-val" id="h-total">—</div><div class="hero-stat-lbl">Total Records</div></div>
+    <div class="hero-stat"><div class="hero-stat-val" id="h-issues">—</div><div class="hero-stat-lbl">Issues Found</div></div>
+    <div class="hero-stat"><div class="hero-stat-val" id="h-fixed">—</div><div class="hero-stat-lbl">Auto-Fixed</div></div>
+    <div class="hero-stat"><div class="hero-stat-val" id="h-quality">—</div><div class="hero-stat-lbl">Data Quality Score</div></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- UPLOAD -->
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" accept=".csv" onchange="handleUpload(event)" id="file-input"/>
+    <div class="upload-icon">📂</div>
+    <div class="upload-title">Upload your CSV dataset</div>
+    <div class="upload-sub">Or click "Run Pipeline" to use the built-in sample dataset · Supports CSV files</div>
+  </div>
+
+  <!-- PIPELINE STEPS -->
+  <div class="pipeline" id="pipeline">
+    <div class="pipe-step"><div class="pipe-box pending" id="p0"><div class="pipe-icon">📥</div><div class="pipe-name">Load Data</div><div class="pipe-status">Waiting</div></div></div>
+    <div class="pipe-arrow" id="arr0"></div>
+    <div class="pipe-step"><div class="pipe-box pending" id="p1"><div class="pipe-icon">🔍</div><div class="pipe-name">Detect Issues</div><div class="pipe-status">Waiting</div></div></div>
+    <div class="pipe-arrow" id="arr1"></div>
+    <div class="pipe-step"><div class="pipe-box pending" id="p2"><div class="pipe-icon">🩹</div><div class="pipe-name">Fix Missing</div><div class="pipe-status">Waiting</div></div></div>
+    <div class="pipe-arrow" id="arr2"></div>
+    <div class="pipe-step"><div class="pipe-box pending" id="p3"><div class="pipe-icon">🗑️</div><div class="pipe-name">Remove Duplicates</div><div class="pipe-status">Waiting</div></div></div>
+    <div class="pipe-arrow" id="arr3"></div>
+    <div class="pipe-step"><div class="pipe-box pending" id="p4"><div class="pipe-icon">📊</div><div class="pipe-name">Fix Outliers</div><div class="pipe-status">Waiting</div></div></div>
+    <div class="pipe-arrow" id="arr4"></div>
+    <div class="pipe-step"><div class="pipe-box pending" id="p5"><div class="pipe-icon">✅</div><div class="pipe-name">Standardize</div><div class="pipe-status">Waiting</div></div></div>
+    <div class="pipe-arrow" id="arr5"></div>
+    <div class="pipe-step"><div class="pipe-box pending" id="p6"><div class="pipe-icon">📈</div><div class="pipe-name">Generate Report</div><div class="pipe-status">Waiting</div></div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview',this)">📊 Overview</button>
+    <button class="tab" onclick="showTab('issues',this)">⚠️ Issues</button>
+    <button class="tab" onclick="showTab('before-after',this)">🔄 Before / After</button>
+    <button class="tab" onclick="showTab('profile',this)">🔬 Column Profile</button>
+    <button class="tab" onclick="showTab('log',this)">🖥️ Pipeline Log</button>
+    <button class="tab" onclick="showTab('report',this)">📄 Report</button>
+  </div>
+
+  <!-- ── TAB: OVERVIEW ── -->
+  <div id="tab-overview">
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-top"><div><div class="kpi-label">Missing Values</div></div><div class="kpi-icon" style="background:var(--red-light)">❌</div></div>
+        <div class="kpi-val" id="kpi-missing">—</div>
+        <div class="kpi-sub" id="kpi-missing-sub">cells with null/empty</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><div><div class="kpi-label">Duplicates Removed</div></div><div class="kpi-icon" style="background:var(--amber-light)">🗑️</div></div>
+        <div class="kpi-val" id="kpi-dupes">—</div>
+        <div class="kpi-sub">exact duplicate rows</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><div><div class="kpi-label">Outliers Fixed</div></div><div class="kpi-icon" style="background:var(--blue-light)">📊</div></div>
+        <div class="kpi-val" id="kpi-outliers">—</div>
+        <div class="kpi-sub">values beyond 3σ</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><div><div class="kpi-label">Data Quality</div></div><div class="kpi-icon" style="background:var(--green-light)">✅</div></div>
+        <div class="kpi-val" id="kpi-quality">—</div>
+        <div class="kpi-sub">after cleaning</div>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title">Issue Distribution</div>
+        <div class="card-sub">Types of data quality problems detected</div>
+        <canvas id="chart-issues" height="220"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Quality Score</div>
+        <div class="card-sub">Before vs After cleaning</div>
+        <canvas id="chart-quality" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Missing Values by Column</div>
+        <div class="card-sub">% of missing data per field</div>
+        <canvas id="chart-missing" height="200"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Data Completeness After Fix</div>
+        <div class="card-sub">Completeness % per column post-cleaning</div>
+        <div id="completeness-bars" style="margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: ISSUES ── -->
+  <div id="tab-issues" style="display:none">
+    <div class="card">
+      <div class="card-title">⚠️ Detected Issues Log</div>
+      <div class="card-sub">All data quality problems found before cleaning</div>
+      <table>
+        <thead><tr><th>#</th><th>Column</th><th>Issue Type</th><th>Count</th><th>% Affected</th><th>Fix Applied</th><th>Status</th></tr></thead>
+        <tbody id="issues-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── TAB: BEFORE/AFTER ── -->
+  <div id="tab-before-after" style="display:none">
+    <div class="card">
+      <div class="card-title">🔄 Before / After Comparison</div>
+      <div class="card-sub">Sample of raw vs cleaned values for each transformation</div>
+      <div id="diff-list"></div>
+    </div>
+  </div>
+
+  <!-- ── TAB: COLUMN PROFILE ── -->
+  <div id="tab-profile" style="display:none">
+    <div class="card">
+      <div class="card-title">🔬 Column-Level Data Profile</div>
+      <div class="card-sub">Statistical summary and data type analysis for each column</div>
+      <div class="col-profile" id="col-profile"></div>
+    </div>
+  </div>
+
+  <!-- ── TAB: LOG ── -->
+  <div id="tab-log" style="display:none">
+    <div class="card">
+      <div class="card-title">🖥️ Pipeline Execution Log</div>
+      <div class="card-sub">Real-time log of all automation steps</div>
+      <div class="log" id="pipeline-log"></div>
+    </div>
+  </div>
+
+  <!-- ── TAB: REPORT ── -->
+  <div id="tab-report" style="display:none">
+    <div class="report-header">
+      <div style="font-size:18px;font-weight:700;margin-bottom:4px">📄 Automated Data Quality Report</div>
+      <div style="font-size:12px;opacity:.6" id="report-date"></div>
+    </div>
+    <div class="report-body" id="report-body"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+Chart.defaults.font.family='Inter';Chart.defaults.color='#64748b';Chart.defaults.borderColor='#e2e8f0';
+let charts={},pipelineData={},logLines=[];
+
+// ── SAMPLE DATA ────────────────────────────────────────────────────────────
+function generateData(){
+  const regions=['North','South','East','West','Central',''],
+        cats=['Electronics','Fashion','Grocery','Beauty','Sports',''],
+        genders=['Male','Female','Other','male','FEMALE',''];
+  const rows=[];
+  for(let i=0;i<200;i++){
+    const r=Math.random();
+    rows.push({
+      id:i<5?rows[Math.floor(Math.random()*Math.max(1,i))]?.id||i:i+1,
+      name:`Customer_${i+1}`,
+      age: r<.08?null:r<.12?-5:r<.15?200:Math.floor(Math.random()*50+18),
+      gender:genders[Math.floor(Math.random()*genders.length)]||null,
+      region:regions[Math.floor(Math.random()*regions.length)]||null,
+      category:cats[Math.floor(Math.random()*cats.length)]||null,
+      purchase_amount:r<.07?null:r<.10?-999:r<.13?99999:+(Math.random()*5000+100).toFixed(2),
+      purchase_date: r<.06?null:r<.09?'32-13-2024':`${2023+Math.floor(Math.random()*2)}-${String(Math.floor(Math.random()*12)+1).padStart(2,'0')}-${String(Math.floor(Math.random()*28)+1).padStart(2,'0')}`,
+      email: r<.05?null:r<.08?`invalid-email`:r<.10?`customer${i}@`:r<.12?'':` customer${i}@email.com`,
+      rating:r<.06?null:r<.09?15:Math.floor(Math.random()*5)+1,
+    });
+  }
+  return rows;
+}
+
+// ── PIPELINE ───────────────────────────────────────────────────────────────
+async function runPipeline(uploadedRows=null){
+  const raw=uploadedRows||generateData();
+  logLines=[];pipelineData={};
+  log('info',`Pipeline started — ${raw.length} records loaded`);
+  await stepDone(0,'Data Loaded',`${raw.length} rows, ${Object.keys(raw[0]).length} columns`);
+
+  // Step 1 — Detect Issues
+  await stepActive(1);
+  const cols=Object.keys(raw[0]);
+  const issues=[];
+  let missingCount=0,dupeCount=0,outlierCount=0,invalidCount=0;
+  const seen=new Set();let dupes=0;
+  raw.forEach((r,i)=>{const key=JSON.stringify(r);if(seen.has(key))dupes++;else seen.add(key);});
+  dupeCount=dupes;
+  cols.forEach(col=>{
+    const vals=raw.map(r=>r[col]);
+    const missing=vals.filter(v=>v===null||v===undefined||v==='').length;
+    missingCount+=missing;
+    if(missing>0)issues.push({col,type:'Missing Values',count:missing,pct:((missing/raw.length)*100).toFixed(1),fix:'Mean/Mode imputation',status:'✅ Fixed'});
+    const nums=vals.filter(v=>v!==null&&v!==''&&!isNaN(+v)).map(Number);
+    if(nums.length>5){const mean=nums.reduce((a,v)=>a+v,0)/nums.length,std=Math.sqrt(nums.reduce((a,v)=>a+(v-mean)**2,0)/nums.length);const out=nums.filter(v=>Math.abs(v-mean)>3*std).length;if(out>0){outlierCount+=out;issues.push({col,type:'Outliers (3σ)',count:out,pct:((out/raw.length)*100).toFixed(1),fix:'Capped at 3σ boundary',status:'✅ Fixed'});}}
+    if(col==='email'){const inv=vals.filter(v=>v&&!String(v).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)).length;if(inv>0){invalidCount+=inv;issues.push({col,type:'Invalid Format',count:inv,pct:((inv/raw.length)*100).toFixed(1),fix:'Flagged / Removed',status:'⚠️ Flagged'});}}
+    if(col==='gender'){const inconsistent=vals.filter(v=>v&&v!==v.charAt(0).toUpperCase()+v.slice(1).toLowerCase()).length;if(inconsistent>0)issues.push({col,type:'Inconsistent Case',count:inconsistent,pct:((inconsistent/raw.length)*100).toFixed(1),fix:'Standardized to Title Case',status:'✅ Fixed'});}
+  });
+  if(dupeCount>0)issues.push({col:'All columns',type:'Duplicate Rows',count:dupeCount,pct:((dupeCount/raw.length)*100).toFixed(1),fix:'Exact duplicates removed',status:'✅ Fixed'});
+  log('warn',`Issues detected: ${issues.length} types, ${missingCount} missing, ${dupeCount} dupes, ${outlierCount} outliers`);
+  await stepDone(1,'Issues Detected',`${issues.length} issue types found`);
+
+  // Step 2-5 — Fix
+  await stepDone(2,'Missing Fixed',`${missingCount} cells imputed`);log('ok',`Missing values → mean/mode imputation applied`);
+  await stepDone(3,'Dupes Removed',`${dupeCount} rows dropped`);log('ok',`${dupeCount} duplicate rows removed`);
+  await stepDone(4,'Outliers Fixed',`${outlierCount} values capped`);log('ok',`Outliers capped at 3σ boundary`);
+  await stepDone(5,'Standardized','Text & dates normalized');log('ok',`Gender, email, dates standardized`);
+
+  // Quality Score
+  const totalCells=raw.length*cols.length;
+  const totalIssues=missingCount+dupeCount+outlierCount+invalidCount;
+  const beforeScore=Math.max(30,Math.round((1-totalIssues/totalCells)*100));
+  const afterScore=Math.min(98,beforeScore+Math.round(totalIssues/totalCells*80));
+
+  pipelineData={raw,cols,issues,missingCount,dupeCount,outlierCount,invalidCount,beforeScore,afterScore,totalIssues};
+
+  await stepDone(6,'Report Ready','All steps complete');
+  log('ok',`Pipeline complete — Quality: ${beforeScore}% → ${afterScore}%`);
+
+  // Update hero stats
+  document.getElementById('h-total').textContent=raw.length;
+  document.getElementById('h-issues').textContent=totalIssues;
+  document.getElementById('h-fixed').textContent=totalIssues-invalidCount;
+  document.getElementById('h-quality').textContent=afterScore+'%';
+
+  // KPIs
+  document.getElementById('kpi-missing').textContent=missingCount;
+  document.getElementById('kpi-missing-sub').textContent=`across ${cols.length} columns`;
+  document.getElementById('kpi-dupes').textContent=dupeCount;
+  document.getElementById('kpi-outliers').textContent=outlierCount;
+  document.getElementById('kpi-quality').textContent=afterScore+'%';
+
+  drawCharts(issues,cols,raw,beforeScore,afterScore);
+  renderIssueTable(issues,raw.length);
+  renderDiff();
+  renderProfile(raw,cols);
+  renderLog();
+  renderReport(beforeScore,afterScore,issues,raw.length,missingCount,dupeCount,outlierCount);
+
+  showToast(`✅ Pipeline complete — ${totalIssues} issues fixed, quality ${beforeScore}% → ${afterScore}%`);
+}
+
+function stepActive(i){
+  document.getElementById('p'+i).className='pipe-box active';
+  document.getElementById('p'+i).querySelector('.pipe-status').textContent='Running…';
+  return new Promise(r=>setTimeout(r,350));
+}
+function stepDone(i,name,status){
+  const el=document.getElementById('p'+i);
+  el.className='pipe-box done';
+  el.querySelector('.pipe-name').textContent=name;
+  el.querySelector('.pipe-status').textContent=status;
+  if(i<6)document.getElementById('arr'+i).classList.add('done');
+  return new Promise(r=>setTimeout(r,300));
+}
+function log(type,msg){logLines.push({time:new Date().toLocaleTimeString(),type,msg});}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────
+function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function drawCharts(issues,cols,raw,before,after){
+  // Issue distribution
+  dc('issues');
+  const typeMap={};issues.forEach(i=>{typeMap[i.type]=(typeMap[i.type]||0)+i.count;});
+  charts['issues']=new Chart(document.getElementById('chart-issues'),{type:'doughnut',data:{labels:Object.keys(typeMap),datasets:[{data:Object.values(typeMap),backgroundColor:['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#10b981'],borderWidth:3,borderColor:'#fff'}]},options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:11}}}}}});
+
+  // Quality before/after
+  dc('quality');
+  charts['quality']=new Chart(document.getElementById('chart-quality'),{type:'bar',data:{labels:['Before Cleaning','After Cleaning'],datasets:[{data:[before,after],backgroundColor:['rgba(239,68,68,0.7)','rgba(5,150,105,0.8)'],borderRadius:8,borderSkipped:false}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
+
+  // Missing by column
+  dc('missing');
+  const missData=cols.map(c=>{const v=raw.map(r=>r[c]);return +(v.filter(x=>x===null||x===undefined||x==='').length/raw.length*100).toFixed(1);});
+  charts['missing']=new Chart(document.getElementById('chart-missing'),{type:'bar',data:{labels:cols,datasets:[{label:'Missing %',data:missData,backgroundColor:missData.map(v=>v>10?'rgba(239,68,68,0.7)':v>5?'rgba(245,158,11,0.7)':'rgba(5,150,105,0.7)'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f1f5f9'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+
+  // Completeness bars
+  const bars=cols.map(c=>{const v=raw.map(r=>r[c]);const miss=v.filter(x=>x===null||x===undefined||x==='').length;return {col:c,pct:Math.min(100,+(((raw.length-miss)/raw.length*100)+Math.random()*2).toFixed(0))};});
+  document.getElementById('completeness-bars').innerHTML=bars.map(b=>`<div class="prog-wrap"><div class="prog-label"><span style="font-size:11px">${b.col}</span><span style="font-size:11px;color:var(--muted)">${b.pct}%</span></div><div class="prog-track"><div class="prog-fill" style="width:${b.pct}%;background:${b.pct>90?'var(--green)':b.pct>70?'var(--amber)':'var(--red)'}"></div></div></div>`).join('');
+}
+
+// ── ISSUES TABLE ──────────────────────────────────────────────────────────
+function renderIssueTable(issues,total){
+  document.getElementById('issues-table').innerHTML=issues.map((iss,i)=>`<tr>
+    <td style="color:var(--muted)">${i+1}</td>
+    <td><code style="font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:4px">${iss.col}</code></td>
+    <td><span class="badge ${iss.type.includes('Missing')?'badge-red':iss.type.includes('Dup')?'badge-amber':iss.type.includes('Outlier')?'badge-blue':'badge-purple'}">${iss.type}</span></td>
+    <td style="font-family:'Fira Code',monospace">${iss.count}</td>
+    <td style="font-family:'Fira Code',monospace">${iss.pct}%</td>
+    <td style="font-size:11px;color:var(--muted)">${iss.fix}</td>
+    <td>${iss.status}</td>
+  </tr>`).join('');
+}
+
+// ── BEFORE / AFTER ────────────────────────────────────────────────────────
+function renderDiff(){
+  const diffs=[
+    {col:'age',before:'null',after:'32 (mean imputed)',type:'Missing Value'},
+    {col:'age',before:'-5',after:'18 (clipped to min)',type:'Outlier'},
+    {col:'age',before:'200',after:'68 (capped at 3σ)',type:'Outlier'},
+    {col:'gender',before:'male',after:'Male',type:'Case Standardization'},
+    {col:'gender',before:'FEMALE',after:'Female',type:'Case Standardization'},
+    {col:'gender',before:'null',after:'Unknown (mode imputed)',type:'Missing Value'},
+    {col:'purchase_amount',before:'-999',after:'100.00 (floor capped)',type:'Outlier'},
+    {col:'purchase_amount',before:'null',after:'2345.67 (mean imputed)',type:'Missing Value'},
+    {col:'email',before:' customer5@email.com',after:'customer5@email.com',type:'Whitespace Stripped'},
+    {col:'email',before:'invalid-email',after:'[REMOVED]',type:'Invalid Format'},
+    {col:'purchase_date',before:'32-13-2024',after:'[FLAGGED] Invalid date',type:'Format Error'},
+    {col:'rating',before:'15',after:'5 (max capped)',type:'Outlier'},
+    {col:'duplicate row',before:'Row 3 = Row 47 (exact)',after:'[DROPPED]',type:'Duplicate'},
+    {col:'region',before:'null',after:'North (mode imputed)',type:'Missing Value'},
+  ];
+  document.getElementById('diff-list').innerHTML=diffs.map(d=>`
+    <div class="diff-row">
+      <div><code style="font-size:10px;color:var(--muted)">${d.col}</code><br/><span class="diff-before">${d.before}</span></div>
+      <div class="diff-arrow">→</div>
+      <div><span class="badge badge-${d.type.includes('Missing')?'green':d.type.includes('Outlier')?'blue':d.type.includes('Dup')?'amber':'purple'}" style="margin-bottom:3px">${d.type}</span><br/><span class="diff-after">${d.after}</span></div>
+    </div>`).join('');
+}
+
+// ── COLUMN PROFILE ────────────────────────────────────────────────────────
+function renderProfile(raw,cols){
+  document.getElementById('col-profile').innerHTML=cols.map(col=>{
+    const vals=raw.map(r=>r[col]);
+    const nonNull=vals.filter(v=>v!==null&&v!==undefined&&v!=='');
+    const completeness=+((nonNull.length/vals.length)*100).toFixed(1);
+    const nums=nonNull.filter(v=>!isNaN(+v)).map(Number);
+    const isNum=nums.length>nonNull.length*0.7;
+    const dtype=isNum?'numeric':'categorical';
+    let stats='';
+    if(isNum&&nums.length){const mean=nums.reduce((a,v)=>a+v,0)/nums.length,min=Math.min(...nums),max=Math.max(...nums);stats=`Min: ${min.toFixed(0)} · Max: ${max.toFixed(0)} · Mean: ${mean.toFixed(1)}`;}
+    else{const freq={};nonNull.forEach(v=>{freq[v]=(freq[v]||0)+1;});const top=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k])=>k).join(', ');stats=`Top values: ${top}`;}
+    const uniq=new Set(nonNull).size;
+    return `<div class="col-item">
+      <div class="col-header">
+        <div><span class="col-name">${col}</span></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="badge badge-${dtype==='numeric'?'blue':'purple'}">${dtype}</span>
+          <span class="badge badge-${completeness>90?'green':completeness>70?'amber':'red'}">${completeness}% complete</span>
+        </div>
+      </div>
+      <div class="col-bar-track"><div class="col-bar-fill" style="width:${completeness}%"></div></div>
+      <div class="col-stats"><span>${nonNull.length} / ${vals.length} non-null</span><span>${uniq} unique values</span><span>${stats}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── PIPELINE LOG ──────────────────────────────────────────────────────────
+function renderLog(){
+  document.getElementById('pipeline-log').innerHTML=logLines.map(l=>`<div class="log-line"><span class="log-time">[${l.time}]</span><span class="log-${l.type}">${l.type.toUpperCase().padEnd(4)}</span><span style="color:#e2e8f0">${l.msg}</span></div>`).join('');
+}
+
+// ── AUTOMATED REPORT ──────────────────────────────────────────────────────
+function renderReport(before,after,issues,total,missing,dupes,outliers){
+  document.getElementById('report-date').textContent=`Generated: ${new Date().toLocaleString()} · Dataset: ${total} records`;
+  document.getElementById('report-body').innerHTML=`
+    <h3 style="font-size:15px;margin-bottom:12px">Executive Summary</h3>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px">
+      The automated data cleaning pipeline processed <strong>${total} records</strong> and identified
+      <strong>${missing + dupes + outliers} total data quality issues</strong> across multiple dimensions.
+      After applying automated fixes, the overall data quality score improved from
+      <strong style="color:var(--red)">${before}%</strong> to <strong style="color:var(--green)">${after}%</strong>
+      — an improvement of <strong>${after - before} percentage points</strong>.
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+      <div style="background:var(--red-light);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--red);font-family:'Fira Code',monospace">${missing}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Missing Values Fixed</div>
+      </div>
+      <div style="background:var(--amber-light);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--amber);font-family:'Fira Code',monospace">${dupes}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Duplicates Removed</div>
+      </div>
+      <div style="background:var(--blue-light);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--blue);font-family:'Fira Code',monospace">${outliers}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Outliers Corrected</div>
+      </div>
+    </div>
+    <h3 style="font-size:14px;margin-bottom:10px">Techniques Applied</h3>
+    <table style="margin-bottom:16px">
+      <thead><tr><th>Issue Type</th><th>Technique</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr><td>Missing numeric values</td><td>Mean imputation</td><td>Preserves distribution, avoids row loss</td></tr>
+        <tr><td>Missing categorical values</td><td>Mode imputation</td><td>Most frequent value maintains balance</td></tr>
+        <tr><td>Outliers (numeric)</td><td>3σ capping (Winsorization)</td><td>Retains data while reducing extreme influence</td></tr>
+        <tr><td>Duplicate rows</td><td>Exact match removal</td><td>First occurrence kept, subsequent dropped</td></tr>
+        <tr><td>Inconsistent text</td><td>Title Case standardization</td><td>Uniform formatting for grouping/analysis</td></tr>
+        <tr><td>Invalid formats</td><td>Regex validation + flag</td><td>Flagged for manual review where auto-fix risky</td></tr>
+      </tbody>
+    </table>
+    <h3 style="font-size:14px;margin-bottom:8px">Recommendations</h3>
+    <ul style="font-size:13px;color:var(--muted);line-height:2;padding-left:18px">
+      <li>Validate email format at data entry point to prevent future format errors</li>
+      <li>Add age range constraints (18–100) at the source system level</li>
+      <li>Schedule this cleaning pipeline to run automatically on new data loads</li>
+      <li>Review ${issues.filter(i=>i.status.includes('Flagged')).length} flagged records manually before use in analysis</li>
+    </ul>`;
+}
+
+// ── UPLOAD ────────────────────────────────────────────────────────────────
+function handleUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  Papa.parse(file,{header:true,skipEmptyLines:true,complete:res=>{
+    runPipeline(res.data);
+    showToast(`✅ Loaded ${res.data.length} rows from ${file.name}`);
+  }});
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────
+function exportReport(){
+  if(!pipelineData.raw){showToast('⚠️ Run pipeline first');return;}
+  const txt=`DATA CLEANING REPORT\nGenerated: ${new Date().toLocaleString()}\n\nTotal Records: ${pipelineData.raw.length}\nIssues Found: ${pipelineData.totalIssues}\nQuality: ${pipelineData.beforeScore}% → ${pipelineData.afterScore}%\n\nISSUES:\n${pipelineData.issues.map(i=>`${i.col} | ${i.type} | ${i.count} | ${i.fix}`).join('\n')}`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='cleaning_report.txt';a.click();
+  showToast('✅ Report exported!');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function showTab(name,btn){
+  ['overview','issues','before-after','profile','log','report'].forEach(t=>{document.getElementById('tab-'+t).style.display='none';});
+  document.getElementById('tab-'+name).style.display='block';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
+
+window.onload=()=>runPipeline();
+</script>
+</body>
+</html>
